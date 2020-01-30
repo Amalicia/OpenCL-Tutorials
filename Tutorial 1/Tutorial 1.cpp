@@ -34,7 +34,9 @@ int main(int argc, char **argv) {
 		std::cout << "Runinng on " << GetPlatformName(platform_id) << ", " << GetDeviceName(platform_id, device_id) << std::endl;
 
 		//create a queue to which we will push commands for the device
-		cl::CommandQueue queue(context);
+		// cl::CommandQueue queue(context);		<- commented out due to profiling
+		// Task 4 - enable profiling
+		cl::CommandQueue  queue(context, CL_QUEUE_PROFILING_ENABLE);
 
 		//2.2 Load & build the device code
 		cl::Program::Sources sources;
@@ -56,8 +58,11 @@ int main(int argc, char **argv) {
 
 		//Part 3 - memory allocation
 		//host - input
+		// commented out to play around with vector sizes
 		std::vector<int> A = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }; //C++11 allows this type of initialisation
 		std::vector<int> B = { 0, 1, 2, 0, 1, 2, 0, 1, 2, 0 };
+		/*std::vector<int> A(1000000);
+		std::vector<int> B(1000000);*/
 		
 		size_t vector_elements = A.size();//number of elements
 		size_t vector_size = A.size()*sizeof(int);//size in bytes
@@ -76,20 +81,52 @@ int main(int argc, char **argv) {
 		queue.enqueueWriteBuffer(buffer_A, CL_TRUE, 0, vector_size, &A[0]);
 		queue.enqueueWriteBuffer(buffer_B, CL_TRUE, 0, vector_size, &B[0]);
 
+		// create multiplication kernel
+		/*cl::Kernel kernel_mult = cl::Kernel(program, "mult");
+		kernel_mult.setArg(0, buffer_A);
+		kernel_mult.setArg(1, buffer_B);
+		kernel_mult.setArg(2, buffer_C)*/;
+
 		//4.2 Setup and execute the kernel (i.e. device code)
-		cl::Kernel kernel_add = cl::Kernel(program, "add");
+		// commented to allow us to perform A * B + B
+		/*cl::Kernel kernel_add = cl::Kernel(program, "add");
 		kernel_add.setArg(0, buffer_A);
 		kernel_add.setArg(1, buffer_B);
-		kernel_add.setArg(2, buffer_C);
+		kernel_add.setArg(2, buffer_C);*/
+	/*	cl::Kernel kernel_add = cl::Kernel(program, "add");
+		kernel_add.setArg(0, buffer_C);
+		kernel_add.setArg(1, buffer_B);
+		kernel_add.setArg(2, buffer_C);*/
 
-		queue.enqueueNDRangeKernel(kernel_add, cl::NullRange, cl::NDRange(vector_elements), cl::NullRange);
+		cl::Kernel kernel_mult_add = cl::Kernel(program, "mult_add");
+		kernel_mult_add.setArg(0, buffer_A);
+		kernel_mult_add.setArg(1, buffer_B);
+		kernel_mult_add.setArg(2, buffer_C);
+
+		//perform multiplication first
+		// commented to perform single mult add operation
+		//queue.enqueueNDRangeKernel(kernel_mult, cl::NullRange, cl::NDRange(vector_elements), cl::NullRange);
+
+		//// queue.enqueueNDRangeKernel(kernel_add, cl::NullRange, cl::NDRange(vector_elements), cl::NullRange);		<-- commented for same reason as above
+		////Task 4 - create event for queue
+		cl::Event prof_event;
+		//queue.enqueueNDRangeKernel(kernel_add, cl::NullRange, cl::NDRange(vector_elements), cl::NullRange, NULL, &prof_event);
+
+		queue.enqueueNDRangeKernel(kernel_mult_add, cl::NullRange, cl::NDRange(vector_elements), cl::NullRange, NULL, &prof_event);
 
 		//4.3 Copy the result from device to host
 		queue.enqueueReadBuffer(buffer_C, CL_TRUE, 0, vector_size, &C[0]);
 
+		// commenetd out to avoid console spam for large vextors
 		std::cout << "A = " << A << std::endl;
 		std::cout << "B = " << B << std::endl;
 		std::cout << "C = " << C << std::endl;
+
+		//Task 4 - Display kernel execution time
+		std::cout << "Kernel execution time [ns]: " << prof_event.getProfilingInfo<CL_PROFILING_COMMAND_END>() - prof_event.getProfilingInfo<CL_PROFILING_COMMAND_START>() << std::endl;
+		std::cout << GetFullProfilingInfo(prof_event, ProfilingResolution::PROF_US) << endl;
+
+		// Not a huge ammount of difference between the device and platform on lab machine. Device normally pefroms better
 	}
 	catch (cl::Error err) {
 		std::cerr << "ERROR: " << err.what() << ", " << getErrorString(err.err()) << std::endl;
