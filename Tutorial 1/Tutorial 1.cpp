@@ -59,16 +59,21 @@ int main(int argc, char **argv) {
 		//Part 3 - memory allocation
 		//host - input
 		// commented out to play around with vector sizes
-		std::vector<int> A = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }; //C++11 allows this type of initialisation
-		std::vector<int> B = { 0, 1, 2, 0, 1, 2, 0, 1, 2, 0 };
+		//std::vector<int> A = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }; //C++11 allows this type of initialisation
+		//std::vector<int> B = { 0, 1, 2, 0, 1, 2, 0, 1, 2, 0 };
 		/*std::vector<int> A(1000000);
 		std::vector<int> B(1000000);*/
+
+		// float vectors
+		std::vector<float> A(100000);
+		std::vector<float> B(100000);
 		
 		size_t vector_elements = A.size();//number of elements
-		size_t vector_size = A.size()*sizeof(int);//size in bytes
+		//size_t vector_size = A.size()*sizeof(int);//size in bytes
+		size_t vector_size = A.size() * sizeof(float);
 
 		//host - output
-		std::vector<int> C(vector_elements);
+		std::vector<float> C(vector_elements);
 
 		//device - buffers
 		cl::Buffer buffer_A(context, CL_MEM_READ_WRITE, vector_size);
@@ -98,10 +103,15 @@ int main(int argc, char **argv) {
 		kernel_add.setArg(1, buffer_B);
 		kernel_add.setArg(2, buffer_C);*/
 
-		cl::Kernel kernel_mult_add = cl::Kernel(program, "mult_add");
+		/*cl::Kernel kernel_mult_add = cl::Kernel(program, "mult_add");
 		kernel_mult_add.setArg(0, buffer_A);
 		kernel_mult_add.setArg(1, buffer_B);
-		kernel_mult_add.setArg(2, buffer_C);
+		kernel_mult_add.setArg(2, buffer_C);*/
+
+		cl::Kernel kernel_addf = cl::Kernel(program, "mult_add");
+		kernel_addf.setArg(0, buffer_A);
+		kernel_addf.setArg(1, buffer_B);
+		kernel_addf.setArg(2, buffer_C);
 
 		//perform multiplication first
 		// commented to perform single mult add operation
@@ -112,15 +122,17 @@ int main(int argc, char **argv) {
 		cl::Event prof_event;
 		//queue.enqueueNDRangeKernel(kernel_add, cl::NullRange, cl::NDRange(vector_elements), cl::NullRange, NULL, &prof_event);
 
-		queue.enqueueNDRangeKernel(kernel_mult_add, cl::NullRange, cl::NDRange(vector_elements), cl::NullRange, NULL, &prof_event);
+		//queue.enqueueNDRangeKernel(kernel_mult_add, cl::NullRange, cl::NDRange(vector_elements), cl::NullRange, NULL, &prof_event);
+
+		queue.enqueueNDRangeKernel(kernel_addf, cl::NullRange, cl::NDRange(vector_elements), cl::NullRange, NULL, &prof_event);
 
 		//4.3 Copy the result from device to host
 		queue.enqueueReadBuffer(buffer_C, CL_TRUE, 0, vector_size, &C[0]);
 
 		// commenetd out to avoid console spam for large vextors
-		std::cout << "A = " << A << std::endl;
+		/*std::cout << "A = " << A << std::endl;
 		std::cout << "B = " << B << std::endl;
-		std::cout << "C = " << C << std::endl;
+		std::cout << "C = " << C << std::endl;*/
 
 		//Task 4 - Display kernel execution time
 		std::cout << "Kernel execution time [ns]: " << prof_event.getProfilingInfo<CL_PROFILING_COMMAND_END>() - prof_event.getProfilingInfo<CL_PROFILING_COMMAND_START>() << std::endl;

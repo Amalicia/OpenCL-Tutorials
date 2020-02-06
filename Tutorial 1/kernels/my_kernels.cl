@@ -32,3 +32,9 @@ kernel void add2D(global const int* A, global const int* B, global int* C) {
 
 	C[id]= A[id]+ B[id];
 }
+
+kernel void addf(global const float* A, global const float* B, global float* C) {
+	int id = get_global_id(0);
+	C[id] = A[id] + B[id];
+}
+
